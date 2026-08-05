@@ -7,8 +7,7 @@ name: Release
 # drift rather than tagging an inconsistent commit.
 #
 # This does not publish to any registry. It only creates a git tag and a
-# GitHub release, which is what lets consumers pin a version, for example
-# nvim-treesitter's `revision = 'v0.1.0'`.
+# GitHub release, which is what lets consumers pin a version.
 
 on:
   push:

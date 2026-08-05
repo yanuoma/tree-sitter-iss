@@ -267,10 +267,10 @@ export default grammar({
     number: ($) => token(/\d+(\.\d+)*/),
 
     // `%1`..`%9` and `%n` placeholders in [Messages]/[CustomMessages].
-    // Modelled as a token rather than a `#match?` predicate because Neovim
-    // compiles query regexes as very-magic Vim patterns, where `%[...]` is the
-    // `optional sequence` operator and so matches the empty string, painting
-    // every node it is tested against.
+    // Modelled as a token rather than a `#match?` predicate: predicate regexes
+    // are compiled by whatever engine the host embeds, and those disagree on
+    // metacharacters, so a pattern like `%[0-9n]` can mean something entirely
+    // different from one host to the next. A token means the same everywhere.
     message_placeholder: ($) => token(prec(2, /%[0-9n]/)),
 
     // ------------------------------------------------------------- literals

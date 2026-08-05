@@ -26,28 +26,6 @@ tests do not depend on it: `examples/patterns.iss` is a self-authored fixture
 that exercises every highlight pattern, so the checks above hold on a fresh
 clone and in CI.
 
-## Installing in Neovim
-
-The repository is also a Neovim plugin, so no configuration is required:
-
-```lua
--- lazy.nvim
-{
-  "yanuoma/tree-sitter-iss",
-  version = "*",
-  lazy = false,
-  dependencies = { "nvim-treesitter/nvim-treesitter" },
-}
-```
-
-`plugin/tree-sitter-iss.lua` registers the parser with nvim-treesitter against
-this checkout, installs both `iss` and `pascal`, and starts highlighting for the
-`iss` filetype (which Neovim already maps `*.iss` and `*.isl` to). `version = "*"`
-tracks the latest release tag, so updates only ever land on a released version.
-
-Set `vim.g.tree_sitter_iss_auto_install = false` to register the parser without
-installing anything automatically.
-
 ## Dependency: tree-sitter-pascal
 
 A `[Code]` section is a complete Pascal Script program, and
@@ -182,7 +160,6 @@ src/parser.c             generated parser, committed so consumers need no toolin
 src/scanner.c            external scanner: [Code] blob, nested braces, EOF
 queries/highlights.scm   syntax highlighting
 queries/injections.scm   hands [Code] to tree-sitter-pascal
-plugin/                  Neovim integration (auto-registers + installs)
 bindings/rust/           the Rust crate
 bindings/c/              C headers and pkg-config template
 tests/parser_test.rs     Rust integration tests

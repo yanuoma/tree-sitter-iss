@@ -98,9 +98,9 @@ static bool scan_brace_group(TSLexer *lexer, const bool *valid_symbols) {
 
   // Distinguish the three kinds here, by the character after the brace, rather
   // than with a `#match?` predicate in the highlight query. That matters:
-  // Neovim compiles query regexes as very-magic Vim patterns, where a bare `%`
-  // is an operator prefix, so a pattern like `^\{%` fails to compile and takes
-  // the entire highlighter down with it.
+  // predicate regexes are compiled by whatever engine the host embeds, and
+  // those disagree on metacharacters. Matching on the node type keeps the
+  // distinction independent of any of them.
   enum TokenType kind = CONSTANT;
   if (lexer->lookahead == '#') {
     kind = PREPROC_INLINE;

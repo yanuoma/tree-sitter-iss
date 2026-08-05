@@ -48,7 +48,7 @@
     "Tasks" "Type" "Types" "ValueData" "ValueName" "ValueType" "Verb" "WorkingDir"))
 
 ; [Setup] section directives. @attribute mirrors the parameter-name treatment;
-; @property.builtin is not a highlight group Neovim defines.
+; @property.builtin is not a widely defined highlight group.
 ((directive_name) @attribute
   (#any-of? @attribute
     "AllowCancelDuringInstall" "AllowNetworkDrive" "AllowNoIcons" "AllowRootDirectory"
@@ -264,13 +264,14 @@
     "{usersendto}" "{userstartmenu}" "{userstartup}" "{usertemplates}" "{win}" "{wizardhwnd}"))
 
 ; Constants taking a parameter: {code:Fn}, {param:X|d}, {reg:...}, {cm:...}.
-; Neovim compiles query regexes as very-magic Vim patterns, so this must
-; avoid constructs such as a bare `%` that only the Rust engine accepts.
+; Predicate regexes are compiled by whatever engine the host embeds, so this
+; stays inside a conservative subset that they agree on.
 ((constant) @function.macro
   (#match? @function.macro "^\\{(cm|code|drive|ini|param|reg):"))
 
 ; {%NAME} and {%NAME|default} read an environment variable. A node rather
-; than a regex, because `^\{%` cannot be compiled by Neovim at all.
+; than a regex: a leading `%` is a metacharacter in some host regex engines,
+; so `^\{%` is not portable as a predicate.
 (env_constant) @variable.builtin
 
 ; ------------------------------------------------------------ preprocessor
