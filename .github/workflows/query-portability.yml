@@ -1,0 +1,104 @@
+name: Query portability
+
+# Highlight queries are executed by whatever host embeds the grammar, and those
+# hosts do not all use the same regex engine for predicates. A `#match?` pattern
+# can compile and behave correctly under the tree-sitter CLI, which uses the
+# Rust regex crate, while failing to compile or silently matching everything
+# somewhere else. `tree-sitter query` cannot see that class of bug.
+#
+# This workflow therefore runs the queries through a second, independent engine.
+# Neovim is used only because it is a convenient host that embeds a different
+# one (it compiles predicates as very-magic Vim patterns); the grammar does not
+# target it, and nothing about it is shipped in this repository.
+#
+# Two real bugs were found this way and fixed in the grammar rather than in the
+# queries: `^\{%` cannot be compiled by that engine at all, and `%[0-9n]` parses
+# there as an "optional sequence" operator, which matches the empty string and
+# so tests true against every node.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - grammar.js
+      - src/**
+      - queries/**
+      - examples/patterns.iss
+      - .github/workflows/query-portability.yml
+  pull_request:
+    paths:
+      - grammar.js
+      - src/**
+      - queries/**
+      - examples/patterns.iss
+      - .github/workflows/query-portability.yml
+
+concurrency:
+  group: ${{github.workflow}}-${{github.ref}}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  second-engine:
+    name: Queries behave the same under a second engine
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up tree-sitter
+        uses: tree-sitter/setup-action/cli@v2
+
+      - name: Set up the host used as a test harness
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Build parser and stage queries
+        run: |
+          mkdir -p rt/parser rt/queries/iss
+          tree-sitter build --output rt/parser/iss.so
+          cp queries/*.scm rt/queries/iss/
+
+      - name: Run the highlight query
+        run: |
+          cat > check.lua <<'LUA'
+          vim.opt.rtp:prepend(vim.fn.getcwd() .. '/rt')
+          vim.treesitter.language.add('iss', { path = vim.fn.getcwd() .. '/rt/parser/iss.so' })
+          vim.cmd('edit examples/patterns.iss')
+
+          local q = assert(vim.treesitter.query.get('iss', 'highlights'), 'no highlights query')
+          local parser = assert(vim.treesitter.get_parser(0, 'iss'))
+          local root = parser:parse()[1]:root()
+          assert(not root:has_error(), 'fixture failed to parse')
+
+          -- Assert on *content*, not on a capture count. The failure mode this
+          -- exists to catch is a predicate that matches too much, which raises
+          -- the count and would sail past a size check.
+          local counts = {}
+          for id, node in q:iter_captures(root, 0) do
+            local name = q.captures[id]
+            counts[name] = (counts[name] or 0) + 1
+            if name == 'character.special' then
+              local text = vim.treesitter.get_node_text(node, 0)
+              assert(text:match('^%%[0-9n]$'), '@character.special on ' .. vim.inspect(text))
+            end
+          end
+
+          for _, name in ipairs({
+            'attribute', 'boolean', 'character.special', 'comment', 'constant',
+            'constant.builtin', 'constant.macro', 'function.macro', 'keyword',
+            'keyword.directive', 'number', 'property', 'string', 'type',
+            'type.builtin', 'variable.builtin',
+          }) do
+            assert(counts[name], 'no captures for @' .. name)
+          end
+          io.write('ok\n')
+          LUA
+          # `-l` propagates the script's exit status. Running the same script
+          # with `-c 'luafile ...'` prints a Lua error and then still exits 0,
+          # which would make every assertion above decorative.
+          nvim --clean -l check.lua
