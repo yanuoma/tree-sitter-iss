@@ -1,0 +1,99 @@
+name: Release
+
+# Tags a release when the version in Cargo.toml changes.
+#
+# The version lives in two files that must agree (Cargo.toml drives the crate,
+# tree-sitter.json drives the grammar metadata), so this fails loudly if they
+# drift rather than tagging an inconsistent commit.
+#
+# This does not publish to any registry. It only creates a git tag and a
+# GitHub release, which is what lets consumers pin a version, for example
+# nvim-treesitter's `revision = 'v0.1.0'`.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Cargo.toml
+      - tree-sitter.json
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        run: |
+          cargo_version="$(sed -n '/^\[package\]/,/^\[/p' Cargo.toml \
+            | grep -m1 '^version *= *"' | sed 's/.*"\(.*\)".*/\1/')"
+          ts_version="$(jq -r '.metadata.version' tree-sitter.json)"
+
+          if [ -z "$cargo_version" ]; then
+            echo "::error::could not read the version from Cargo.toml"
+            exit 1
+          fi
+
+          if [ "$cargo_version" != "$ts_version" ]; then
+            echo "::error::version mismatch: Cargo.toml is $cargo_version but tree-sitter.json is $ts_version"
+            exit 1
+          fi
+
+          echo "version=$cargo_version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$cargo_version" >> "$GITHUB_OUTPUT"
+          echo "Resolved version $cargo_version"
+
+      - name: Check whether the tag already exists
+        id: check
+        run: |
+          if git rev-parse -q --verify "refs/tags/${{steps.version.outputs.tag}}" >/dev/null ||
+             git ls-remote --exit-code --tags origin "${{steps.version.outputs.tag}}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "${{steps.version.outputs.tag}} already exists, nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Rust
+        if: steps.check.outputs.exists == 'false'
+        uses: dtolnay/rust-toolchain@stable
+
+      # Never tag a commit that does not build and pass its tests. This repeats
+      # a little of ci.yml on purpose: a tag is permanent, so it is worth the
+      # extra minute to avoid publishing a broken revision.
+      - name: Verify before tagging
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          cargo test
+          cargo package
+
+      - name: Create and push tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "${{steps.version.outputs.tag}}" \
+            -m "Release ${{steps.version.outputs.tag}}"
+          git push origin "${{steps.version.outputs.tag}}"
+
+      - name: Create GitHub release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{github.token}}
+        run: |
+          gh release create "${{steps.version.outputs.tag}}" \
+            --title "${{steps.version.outputs.tag}}" \
+            --generate-notes
