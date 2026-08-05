@@ -31,7 +31,7 @@
     "go": false,
     "java": false,
     "kotlin": false,
-    "node": true,
+    "node": false,
     "python": false,
     "rust": true,
     "swift": false,

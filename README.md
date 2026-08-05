@@ -15,9 +15,12 @@ style preprocessor, and a complete Pascal program.
 | Official example scripts ([`jrsoftware/issrc`]) | **22 / 22** parse, 0 errors |
 | Real-world scripts scraped from public GitHub repos | **48 / 48** parse, 0 errors |
 | `tree-sitter test` corpus | **8 / 8** pass |
-| `cargo test` | **13 / 13** pass |
+| `cargo test` | **12 / 12** pass |
 | Throughput | ~16 MB/s |
 | Error recovery | localized (`MISSING` node, no cascade) |
+
+The 70-script corpus is other projects' code under their own licenses, so it is
+fetched on demand by `scripts/fetch-corpus.ps1` rather than vendored here.
 
 ## Usage from Rust
 
@@ -50,9 +53,8 @@ The crate also re-exports the bundled queries as
 ## Usage from the CLI
 
 ```bash
-tree-sitter generate           # only needed after editing grammar.js
-tree-sitter test               # run the corpus tests
-tree-sitter parse examples/wild/nvm.iss
+tree-sitter parse examples/realistic.iss
+tree-sitter query queries/highlights.scm examples/realistic.iss
 ```
 
 ## Why this grammar is not trivial
@@ -133,14 +135,47 @@ constants highlighted *inside* strings for free.
 ## Layout
 
 ```
-grammar.js               the grammar
+grammar.js               the grammar source (see note below)
+src/parser.c             generated parser, committed so consumers need no tooling
 src/scanner.c            external scanner: [Code] blob, nested braces, EOF
 queries/highlights.scm   syntax highlighting
 queries/injections.scm   hands [Code] to tree-sitter-pascal
+bindings/rust/           the Rust crate
+bindings/c/              C headers and pkg-config template
 tests/parser_test.rs     Rust integration tests
 test/corpus/iss.txt      tree-sitter corpus tests
-examples/real/           22 official scripts from jrsoftware/issrc
-examples/wild/           48 scripts from public GitHub projects
+examples/realistic.iss   a self-contained sample script
+scripts/fetch-corpus.ps1 downloads the real-world validation corpus
+```
+
+### Why is there a `.js` file in a Rust crate?
+
+Tree-sitter's grammar DSL *is* JavaScript — every tree-sitter grammar, including
+all the official ones, is authored in a `grammar.js`. It is used only at author
+time:
+
+```
+grammar.js  --(tree-sitter generate)-->  src/grammar.json  -->  src/parser.c
+```
+
+Because `src/parser.c` is committed, **building or using this crate needs no
+Node.js and no tree-sitter CLI** — `bindings/rust/build.rs` simply compiles
+`src/parser.c` and `src/scanner.c` with `cc`. You only need the CLI if you want
+to change the grammar itself.
+
+This repository ships Rust and C bindings. Node, Python, Go, Swift and Zig
+bindings are disabled in `tree-sitter.json`; re-enable any of them there and run
+`tree-sitter init` if you want them.
+
+## Development
+
+```bash
+tree-sitter generate      # after editing grammar.js
+tree-sitter test          # corpus tests
+cargo test                # Rust tests
+
+pwsh scripts/fetch-corpus.ps1   # optional: 70 real-world scripts
+cargo test                      # now also validates against the corpus
 ```
 
 ## Known gaps

@@ -1,23 +1,6 @@
 # Rust artifacts
 target/
 
-# Node artifacts
-build/
-prebuilds/
-node_modules/
-
-# Swift artifacts
-.build/
-
-# Go artifacts
-_obj/
-
-# Python artifacts
-.venv/
-dist/
-*.egg-info
-*.whl
-
 # C artifacts
 *.a
 *.so
@@ -27,22 +10,18 @@ dist/
 *.pc
 *.exp
 *.lib
+*.obj
+*.o
 
-# Zig artifacts
-.zig-cache/
-zig-cache/
-zig-out/
-
-# Example dirs
+# Third-party validation corpus (fetched by scripts/fetch-corpus.ps1).
+# These are other projects' scripts under their own licenses, so they are
+# deliberately not vendored here.
 /examples/*/
 
 # Grammar volatiles
 *.wasm
-*.obj
-*.o
 
 # Archives
 *.tar.gz
 *.tgz
 *.zip
-*.jar
