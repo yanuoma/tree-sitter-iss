@@ -26,6 +26,28 @@ tests do not depend on it: `examples/patterns.iss` is a self-authored fixture
 that exercises every highlight pattern, so the checks above hold on a fresh
 clone and in CI.
 
+## Dependency: tree-sitter-pascal
+
+A `[Code]` section is a complete Pascal Script program, and
+[`queries/injections.scm`](queries/injections.scm) hands it to
+[`tree-sitter-pascal`]. Treat that as a **dependency, not an optional extra**:
+across the 70-script corpus, `[Code]` is roughly two fifths of the total volume,
+and without the Pascal parser installed that entire region renders as plain
+text.
+
+With nvim-treesitter, install both:
+
+```lua
+require("nvim-treesitter").install({ "iss", "pascal" })
+```
+
+Measured on the corpus, 19 of 26 `[Code]` blocks parse with no errors under
+`tree-sitter-pascal`. The remainder still highlight: tree-sitter recovers
+locally, so a block with an error keeps most of its captures (one 387-byte
+block with a parse error still produced 72 captures across 10 capture kinds).
+The known gaps are Inno-specific extensions such as the `<event('...')>`
+attribute, which upstream Pascal does not model.
+
 ## Usage from Rust
 
 ```toml
@@ -192,8 +214,9 @@ Deliberate scope limits, not blockers:
 - A `\` at the end of an *unquoted* section value is treated as a literal
   backslash rather than a continuation. Trailing backslashes in paths are far
   more common than continuations in that position.
-- `[Code]` is a single opaque token until the Pascal injection is wired up by
-  the host editor.
+- `[Code]` is handed to `tree-sitter-pascal`; see the dependency note above.
+  ISPP directives *inside* a `[Code]` section are part of the injected region
+  rather than being parsed as preprocessor directives.
 
 ## License
 
