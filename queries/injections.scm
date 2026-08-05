@@ -3,6 +3,5 @@
 ;
 ; This is the key composition trick: Inno Setup is really two languages in one
 ; file, and tree-sitter's injection mechanism is designed exactly for that.
-
 ((pascal_code) @injection.content
- (#set! injection.language "pascal"))
+  (#set! injection.language "pascal"))

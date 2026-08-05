@@ -1,5 +1,4 @@
 ; Highlighting for Inno Setup (.iss)
-
 (comment) @comment
 
 ; ---------------------------------------------------------------- sections
@@ -7,7 +6,10 @@
   name: (section_name) @type)
 
 (section_header
-  ["[" "]"] @punctuation.bracket)
+  [
+    "["
+    "]"
+  ] @punctuation.bracket)
 
 ; --------------------------------------------------------------- entries
 (directive_entry
@@ -18,8 +20,11 @@
 
 ; --------------------------------------------------------------- literals
 (string) @string
+
 (string_content) @string
+
 (escaped_quote) @string.escape
+
 (escaped_brace) @string.escape
 
 ; `{app}`, `{sys}`, `{cm:Msg}` - Setup constants
@@ -36,5 +41,9 @@
   argument: (preproc_argument) @none)
 
 ; --------------------------------------------------------------- operators
-["=" ":"] @operator
-[";"] @punctuation.delimiter
+[
+  "="
+  ":"
+] @operator
+
+";" @punctuation.delimiter
