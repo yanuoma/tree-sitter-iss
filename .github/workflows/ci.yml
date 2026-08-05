@@ -27,6 +27,12 @@ concurrency:
   group: ${{github.workflow}}-${{github.ref}}
   cancel-in-progress: true
 
+# The repository default is `write` so that release.yml can push a tag. This
+# workflow needs no write access, so it drops back to read-only rather than
+# inheriting it.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test parser (${{matrix.os}})
