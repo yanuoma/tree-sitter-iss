@@ -1,0 +1,188 @@
+================================================================================
+Setup section with directives and constants
+================================================================================
+
+[Setup]
+AppName=My Program
+DefaultDirName={autopf}\My Program
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (directive_section
+      (section_header)
+      (directive_entry
+        (directive_name)
+        (value
+          (text)))
+      (directive_entry
+        (directive_name)
+        (value
+          (constant)
+          (text))))))
+
+================================================================================
+Files section with parameters and escaped quotes
+================================================================================
+
+[Files]
+Source: "a ""quoted"" name.dll"; DestDir: "{app}"; Flags: ignoreversion
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (parameter_section
+      (section_header)
+      (parameter_entry
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (string_content)
+              (escaped_quote)
+              (string_content)
+              (escaped_quote)
+              (string_content))))
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (constant))))
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (bare_value)))))))
+
+================================================================================
+Nested constants
+================================================================================
+
+[Icons]
+Name: "{group}\{cm:UninstallProgram,{cm:MyAppName}}"; Filename: "{uninstallexe}"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (parameter_section
+      (section_header)
+      (parameter_entry
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (constant)
+              (string_content)
+              (constant))))
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (constant))))))))
+
+================================================================================
+Semicolon is a separator mid-line but a comment at line start
+================================================================================
+
+[Files]
+; this is a comment
+Source: "a.txt"; DestDir: "{app}"
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (parameter_section
+      (section_header)
+      (comment)
+      (parameter_entry
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (string_content))))
+        (parameter
+          (parameter_name)
+          (parameter_value
+            (string
+              (constant))))))))
+
+================================================================================
+Code section is captured whole and brackets inside do not end it
+================================================================================
+
+[Code]
+function Foo(): Boolean;
+begin
+  MsgBox('[Setup] is not a section here', mbError, MB_OK);
+end;
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (code_section
+      (section_header)
+      (pascal_code))))
+
+================================================================================
+ISPP macro with line continuations
+================================================================================
+
+#define Exec(str Cmd) \
+  Local[0] = Param + " " + AddQuotes(Cmd), \
+  Local[0]
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (preproc_directive
+    (preproc_keyword)
+    (preproc_argument)))
+
+================================================================================
+Escaped brace and inline macro expansion
+================================================================================
+
+[Setup]
+OutputBaseFilename=setup-{#MyAppVersion}
+DefaultGroupName={{literal
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (section
+    (directive_section
+      (section_header)
+      (directive_entry
+        (directive_name)
+        (value
+          (text)
+          (preproc_inline)))
+      (directive_entry
+        (directive_name)
+        (value
+          (escaped_brace)
+          (text))))))
+
+================================================================================
+Double slash comment and a URL that is not a comment
+================================================================================
+
+// an ISPP style comment
+[Setup]
+AppPublisherURL=https://example.com/path
+
+--------------------------------------------------------------------------------
+
+(source_file
+  (comment)
+  (section
+    (directive_section
+      (section_header)
+      (directive_entry
+        (directive_name)
+        (value
+          (text))))))

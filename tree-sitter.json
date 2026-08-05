@@ -1,0 +1,40 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "iss",
+      "camelcase": "Iss",
+      "title": "Inno Setup",
+      "scope": "source.iss",
+      "path": ".",
+      "file-types": ["iss", "isl"],
+      "highlights": ["queries/highlights.scm"],
+      "injections": ["queries/injections.scm"],
+      "injection-regex": "^(iss|inno|innosetup|inno-setup)$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Inno Setup (.iss) grammar for tree-sitter",
+    "authors": [
+      {
+        "name": "yanuoma"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/yanuoma/tree-sitter-iss"
+    }
+  },
+  "bindings": {
+    "c": true,
+    "go": false,
+    "java": false,
+    "kotlin": false,
+    "node": true,
+    "python": false,
+    "rust": true,
+    "swift": false,
+    "zig": false
+  }
+}
