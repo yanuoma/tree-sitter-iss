@@ -8,6 +8,5 @@
 ; [Code] section is a whole program, and it accounts for roughly two fifths of
 ; a typical script by volume, so without the Pascal parser installed that whole
 ; region renders as plain text.
-
 ((pascal_code) @injection.content
   (#set! injection.language "pascal"))
