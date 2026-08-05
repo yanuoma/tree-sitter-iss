@@ -49,7 +49,8 @@ fn setup_and_files_sections_use_different_entry_syntax() {
     // The same `;` character is a comment at the start of a line and a
     // parameter separator in the middle of one. This only works because the
     // parser is in a different state inside each section.
-    let tree = parse("[Setup]\nAppName=My Program\n\n[Files]\nSource: \"a.exe\"; DestDir: \"{app}\"\n");
+    let tree =
+        parse("[Setup]\nAppName=My Program\n\n[Files]\nSource: \"a.exe\"; DestDir: \"{app}\"\n");
     let sexp = tree.root_node().to_sexp();
 
     assert!(!tree.root_node().has_error(), "{sexp}");
@@ -73,7 +74,11 @@ fn constants_nest() {
     // counts depth, so the whole thing must come back as ONE constant node.
     let source = "[Icons]\nName: \"{group}\\{cm:UninstallProgram,{cm:MyAppName}}\"\n";
     let tree = parse(source);
-    assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+    assert!(
+        !tree.root_node().has_error(),
+        "{}",
+        tree.root_node().to_sexp()
+    );
 
     let constants = captured_text(source, &tree, "(constant) @c");
     assert!(
@@ -94,7 +99,11 @@ fn code_section_is_captured_whole_and_brackets_inside_do_not_end_it() {
         "end;\n"
     );
     let tree = parse(source);
-    assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+    assert!(
+        !tree.root_node().has_error(),
+        "{}",
+        tree.root_node().to_sexp()
+    );
 
     let blocks = captured_text(source, &tree, "(pascal_code) @c");
     let text = blocks.first().expect("no pascal_code node produced");
@@ -102,7 +111,10 @@ fn code_section_is_captured_whole_and_brackets_inside_do_not_end_it() {
         text.contains("[Setup] is not a section here"),
         "the [Code] block was truncated early: {text:?}"
     );
-    assert!(text.contains("end;"), "the [Code] block is missing its tail");
+    assert!(
+        text.contains("end;"),
+        "the [Code] block is missing its tail"
+    );
 }
 
 #[test]
@@ -112,7 +124,11 @@ fn ispp_macros_span_lines_with_backslash_continuations() {
         "  Local[0] = Param + \" \" + AddQuotes(Cmd), \\\n",
         "  Local[0]\n"
     ));
-    assert!(!tree.root_node().has_error(), "{}", tree.root_node().to_sexp());
+    assert!(
+        !tree.root_node().has_error(),
+        "{}",
+        tree.root_node().to_sexp()
+    );
 }
 
 #[test]
@@ -122,7 +138,10 @@ fn a_url_in_a_value_is_not_a_comment() {
     let sexp = tree.root_node().to_sexp();
 
     assert!(!tree.root_node().has_error(), "{sexp}");
-    assert!(!sexp.contains("comment"), "the URL was misparsed as a comment: {sexp}");
+    assert!(
+        !sexp.contains("comment"),
+        "the URL was misparsed as a comment: {sexp}"
+    );
 }
 
 #[test]

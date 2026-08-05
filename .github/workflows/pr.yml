@@ -1,0 +1,85 @@
+name: PR
+
+# Validation that runs on every pull request. This deliberately does NOT
+# duplicate ci.yml (which already runs on pull_request and covers the parser
+# tests, the Rust test matrix, the scanner fuzzer and query validation).
+# Nothing here publishes: the packaging job is a dry run only.
+#
+# Note there is intentionally no `paths:` filter. ci.yml is path-filtered, so a
+# PR touching only docs runs none of its jobs; if CI were a required check such
+# a PR could never merge. These jobs are cheap and always report a status.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: pr-${{github.event.pull_request.number}}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Rust lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Check lints
+        run: cargo clippy --all-targets -- -D warnings
+
+  generated:
+    name: Generated files are in sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up tree-sitter
+        uses: tree-sitter/setup-action/cli@v2
+
+      # The most common mistake in a grammar PR is editing grammar.js and
+      # forgetting to commit the regenerated parser. Consumers build from the
+      # committed src/parser.c, so a stale one ships broken behaviour.
+      - name: Regenerate parser
+        run: tree-sitter generate
+
+      - name: Fail if src/ is out of date
+        run: |
+          if ! git diff --exit-code --stat -- src/; then
+            echo "::error::src/ is out of date. Run 'tree-sitter generate' and commit the result."
+            exit 1
+          fi
+
+  package:
+    name: Package (dry run)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # Catches broken crate metadata, a missing README or LICENSE, and files
+      # left out of `include` -- before a release rather than after. This only
+      # builds the package; it never uploads.
+      - name: Verify the crate packages cleanly
+        run: cargo package
