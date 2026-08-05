@@ -1,7 +1,7 @@
 [package]
 name = "tree-sitter-iss"
 description = "Inno Setup (.iss) grammar for tree-sitter"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["yanuoma"]
 license = "MIT"
 readme = "README.md"
