@@ -11,16 +11,20 @@ DefaultDirName={autopf}\My Program
 (source_file
   (section
     (directive_section
-      (section_header)
+      (section_header
+        (section_name))
       (directive_entry
         (directive_name)
         (value
-          (text)))
+          (word)
+          (word)))
       (directive_entry
         (directive_name)
         (value
           (constant)
-          (text))))))
+          (text)
+          (word)
+          (word))))))
 
 ================================================================================
 Files section with parameters and escaped quotes
@@ -34,7 +38,8 @@ Source: "a ""quoted"" name.dll"; DestDir: "{app}"; Flags: ignoreversion
 (source_file
   (section
     (parameter_section
-      (section_header)
+      (section_header
+        (section_name))
       (parameter_entry
         (parameter
           (parameter_name)
@@ -53,7 +58,7 @@ Source: "a ""quoted"" name.dll"; DestDir: "{app}"; Flags: ignoreversion
         (parameter
           (parameter_name)
           (parameter_value
-            (bare_value)))))))
+            (word)))))))
 
 ================================================================================
 Nested constants
@@ -67,7 +72,8 @@ Name: "{group}\{cm:UninstallProgram,{cm:MyAppName}}"; Filename: "{uninstallexe}"
 (source_file
   (section
     (parameter_section
-      (section_header)
+      (section_header
+        (section_name))
       (parameter_entry
         (parameter
           (parameter_name)
@@ -95,7 +101,8 @@ Source: "a.txt"; DestDir: "{app}"
 (source_file
   (section
     (parameter_section
-      (section_header)
+      (section_header
+        (section_name))
       (comment)
       (parameter_entry
         (parameter
@@ -124,7 +131,8 @@ end;
 (source_file
   (section
     (code_section
-      (section_header)
+      (section_header
+        (section_name))
       (pascal_code))))
 
 ================================================================================
@@ -140,7 +148,31 @@ ISPP macro with line continuations
 (source_file
   (preproc_directive
     (preproc_keyword)
-    (preproc_argument)))
+    (preproc_argument
+      (preproc_identifier)
+      (punctuation)
+      (preproc_identifier)
+      (preproc_identifier)
+      (punctuation)
+      (preproc_identifier)
+      (punctuation)
+      (number)
+      (punctuation)
+      (preproc_operator)
+      (preproc_identifier)
+      (preproc_operator)
+      (preproc_string
+        (string_content))
+      (preproc_operator)
+      (preproc_identifier)
+      (punctuation)
+      (preproc_identifier)
+      (punctuation)
+      (punctuation)
+      (preproc_identifier)
+      (punctuation)
+      (number)
+      (punctuation))))
 
 ================================================================================
 Escaped brace and inline macro expansion
@@ -155,17 +187,19 @@ DefaultGroupName={{literal
 (source_file
   (section
     (directive_section
-      (section_header)
+      (section_header
+        (section_name))
       (directive_entry
         (directive_name)
         (value
+          (word)
           (text)
           (preproc_inline)))
       (directive_entry
         (directive_name)
         (value
           (escaped_brace)
-          (text))))))
+          (word))))))
 
 ================================================================================
 Double slash comment and a URL that is not a comment
@@ -181,8 +215,15 @@ AppPublisherURL=https://example.com/path
   (comment)
   (section
     (directive_section
-      (section_header)
+      (section_header
+        (section_name))
       (directive_entry
         (directive_name)
         (value
-          (text))))))
+          (word)
+          (text)
+          (word)
+          (text)
+          (word)
+          (text)
+          (word))))))

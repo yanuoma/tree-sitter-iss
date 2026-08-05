@@ -47,12 +47,15 @@ const PARAMETER_SECTIONS = [
   'UninstallRun', 'UninstallRegistry', 'UninstallIcons',
 ];
 
-function sectionHeader(names) {
+function sectionHeader($, names) {
   const keyword =
     names.length === 1 ? ci(names[0]) : choice(...names.map(ci));
   return seq(
     '[',
-    field('name', alias(token(prec(2, keyword)), 'section_name')),
+    // Aliasing to the `$.section_name` *symbol* (not the string
+    // 'section_name') is what makes this a named node. With a string it is
+    // anonymous, and `(section_name)` in a query silently matches nothing.
+    field('name', alias(token(prec(2, keyword)), $.section_name)),
     ']',
   );
 }
@@ -62,14 +65,20 @@ export default grammar({
 
   // Only horizontal whitespace is insignificant. Newlines are real tokens,
   // because a newline is what distinguishes `;` as a comment (line start) from
-  // `;` as a parameter separator (mid line). A backslash immediately before a
-  // newline is an ISPP line continuation and is likewise skipped.
-  extras: ($) => [/[ \t]/, /\\\r?\n/],
+  // `;` as a parameter separator (mid line).
+  //
+  // A backslash continues the line only when it is *preceded by whitespace*.
+  // That matches ISPP.Preprocessor.pas, which requires `LineRead[L - 1] <= #32`
+  // before treating the trailing character as its span symbol. Without that
+  // condition an ordinary Windows path ending in a backslash, such as
+  // `OutputDir=D:\`, would silently swallow the following line.
+  extras: ($) => [/[ \t]/, /[ \t]\\\r?\n/],
 
   externals: ($) => [
     $.pascal_code,   // raw [Code] body, consumed until the next section header
     $.constant,      // `{app}`, `{cm:A,{cm:B}}` - needs brace counting
     $.preproc_inline, // `{#MyMacro}`
+    $.env_constant,  // `{%ENV}` and `{%ENV|default}`
     $.escaped_brace, // `{{`
     $._eof,          // zero-width token matching only at end of input
     $._error_sentinel,
@@ -123,9 +132,9 @@ export default grammar({
         optional($.pascal_code),
       ),
 
-    _directive_section_header: ($) => sectionHeader(DIRECTIVE_SECTIONS),
-    _parameter_section_header: ($) => sectionHeader(PARAMETER_SECTIONS),
-    _code_section_header: ($) => sectionHeader(['Code']),
+    _directive_section_header: ($) => sectionHeader($, DIRECTIVE_SECTIONS),
+    _parameter_section_header: ($) => sectionHeader($, PARAMETER_SECTIONS),
+    _code_section_header: ($) => sectionHeader($, ['Code']),
     _unknown_section_header: ($) =>
       seq('[', field('name', $.section_name), ']'),
 
@@ -155,15 +164,50 @@ export default grammar({
         $._line_end,
       ),
 
-    // e.g. `AppName`, or a localized message key like `en.WelcomeLabel`
-    directive_name: ($) => token(/[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)?/),
+    // e.g. `AppName`, or a localized message key like `english.WelcomeLabel`.
+    // The language prefix is a separate node so it can be highlighted apart
+    // from the key it qualifies, which is what [CustomMessages] and
+    // [Messages] entries look like. The plain case deliberately produces no
+    // child node, to keep the common tree shape flat.
+    directive_name: ($) =>
+      choice(
+        seq(
+          field('language', $.language_name),
+          '.',
+          field('key', $.directive_key),
+        ),
+        $._name,
+      ),
+
+    language_name: ($) => $._name,
+
+    directive_key: ($) => $._name,
+
+    _name: ($) => token(/[A-Za-z_][A-Za-z0-9_]*/),
 
     value: ($) => repeat1($._value_piece),
 
     _value_piece: ($) =>
-      choice($.constant, $.preproc_inline, $.escaped_brace, $.text, $._stray_brace),
+      choice(
+        $.constant,
+        $.preproc_inline,
+        $.env_constant,
+        $.escaped_brace,
+        $.message_placeholder,
+        $.number,
+        $.word,
+        $.text,
+        $._stray_brace,
+      ),
 
-    text: ($) => token(prec(-1, /[^{\r\n]+/)),
+    // Values are split into words and numbers rather than kept as one opaque
+    // run, so that highlight queries can pick out the enumerated values the
+    // language defines: `yes`/`no`, `lzma2/max`, `admin`, architecture names
+    // and so on. `text` is only the leftover punctuation between them.
+    // Space and tab are excluded so that whitespace is handled solely by
+    // `extras`; otherwise it gets absorbed into the following token and every
+    // word ends up prefixed with a space, breaking `#eq?`/`#any-of?`.
+    text: ($) => token(prec(-1, /[^{\r\n\t A-Za-z0-9_]+/)),
 
     // A `{` that does not open a balanced group is literal text.
     _stray_brace: ($) => alias(token(prec(-2, '{')), $.text),
@@ -193,11 +237,41 @@ export default grammar({
     parameter_value: ($) => repeat1($._parameter_value_piece),
 
     _parameter_value_piece: ($) =>
-      choice($.string, $.constant, $.preproc_inline, $.escaped_brace, $.bare_value, $._stray_bare_brace),
+      choice(
+        $.string,
+        $.constant,
+        $.preproc_inline,
+        $.env_constant,
+        $.escaped_brace,
+        $.message_placeholder,
+        $.number,
+        $.word,
+        $.bare_value,
+        $._stray_bare_brace,
+      ),
 
-    bare_value: ($) => token(prec(-1, /[^;"{\r\n]+/)),
+    // As with `text`, this is only the punctuation between words, so that each
+    // flag in `Flags: ignoreversion recursesubdirs` is its own node and can be
+    // highlighted individually. Whitespace is excluded for the same reason.
+    bare_value: ($) => token(prec(-1, /[^;"{\r\n\t A-Za-z0-9_]+/)),
 
     _stray_bare_brace: ($) => alias(token(prec(-2, '{')), $.bare_value),
+
+    // Shared across both entry styles. An alphanumeric run counts as a word as
+    // long as it contains at least one letter or underscore, so that flags
+    // which begin with a digit -- `32bit`, `64bit` -- stay a single token
+    // instead of splitting into a number followed by a word.
+    word: ($) => token(/[0-9]*[A-Za-z_][A-Za-z0-9_]*/),
+
+    // Covers plain integers and dotted version numbers such as `1.5.3`.
+    number: ($) => token(/\d+(\.\d+)*/),
+
+    // `%1`..`%9` and `%n` placeholders in [Messages]/[CustomMessages].
+    // Modelled as a token rather than a `#match?` predicate because Neovim
+    // compiles query regexes as very-magic Vim patterns, where `%[...]` is the
+    // `optional sequence` operator and so matches the empty string, painting
+    // every node it is tested against.
+    message_placeholder: ($) => token(prec(2, /%[0-9n]/)),
 
     // ------------------------------------------------------------- literals
 
@@ -207,15 +281,17 @@ export default grammar({
     string: ($) =>
       seq(
         '"',
-        repeat(choice($.string_content, $.escaped_quote, $.constant, $.preproc_inline, $.escaped_brace, $._stray_string_brace)),
+        repeat(choice($.string_content, $.escaped_quote, $.constant, $.env_constant, $.preproc_inline, $.escaped_brace, $._stray_string_brace)),
         '"',
       ),
 
-    string_content: ($) => token(prec(-1, /[^"{]+/)),
+    // token.immediate keeps a space in front of a """ escape from being
+    // absorbed into it, which would shift the escape's highlight one column.
+    string_content: ($) => token.immediate(prec(-1, /[^"{]+/)),
 
     _stray_string_brace: ($) => alias(token(prec(-2, '{')), $.string_content),
 
-    escaped_quote: ($) => '""',
+    escaped_quote: ($) => token.immediate('""'),
 
     // `{{` is Inno's escape for a literal `{`.
     escaped_brace: ($) => token(prec(3, '{{')),
@@ -229,21 +305,104 @@ export default grammar({
     // --------------------------------------------------------- preprocessor
 
     preproc_directive: ($) =>
+      choice($._preproc_expr_directive, $._preproc_message_directive),
+
+    // The ordinary case: the argument is an ISPP expression.
+    _preproc_expr_directive: ($) =>
       seq(
         field('directive', $.preproc_keyword),
         field('argument', optional($.preproc_argument)),
         $._line_end,
       ),
 
+    // `#error` takes free text, not an expression. Tokenising it like an
+    // expression shreds an English sentence into identifiers and operators,
+    // which reads considerably worse than leaving it as one run.
+    _preproc_message_directive: ($) =>
+      seq(
+        field('directive', alias($._message_keyword, $.preproc_keyword)),
+        field('argument', optional(alias($._rest_of_line, $.preproc_text))),
+        $._line_end,
+      ),
+
+    _message_keyword: ($) => token(prec(3, seq('#', /[ \t]*/, ci('error')))),
+
+    // Cannot begin with whitespace, so the message node starts at the first
+    // real character rather than at the space after the directive.
+    _rest_of_line: ($) => token(prec(-1, /[^\r\n \t][^\r\n]*/)),
+
     preproc_keyword: ($) => token(seq('#', /[ \t]*/, /[a-zA-Z_]+/)),
 
-    // An ISPP macro body may span lines via a trailing `\`. The argument token
-    // therefore accepts any character except a backslash that sits immediately
-    // before a line break, leaving that backslash to be consumed as the
-    // line-continuation extra so the argument resumes on the next line.
-    preproc_argument: ($) => prec.right(repeat1($._preproc_argument_part)),
+    // ISPP directive arguments are a small expression language. Tokenising them
+    // means `#define MyAppVersion "1.5"` and `#if Len(X) >= 2` get highlighted
+    // instead of being one opaque run of text.
+    //
+    // The line continuation is matched inside the pieces that can precede it,
+    // because a piece would otherwise consume the whitespace that the
+    // continuation rule in `extras` needs to see before the backslash.
+    preproc_argument: ($) => prec.right(repeat1($._preproc_piece)),
 
-    _preproc_argument_part: ($) => token(prec(-1, /([^\r\n\\]|\\[^\r\n])+/)),
+    _preproc_piece: ($) =>
+      choice(
+        $.preproc_string,
+        $.number,
+        $.preproc_identifier,
+        $.preproc_operator,
+        $.preproc_inline,
+        $._preproc_punctuation,
+        $._preproc_other,
+      ),
+
+    // ISPP accepts both quoting styles, and both use a doubled quote to embed
+    // one. Without the single-quoted form, `#define X 'KeyNote file'` tokenises
+    // as two identifiers and the prose gets highlighted as code.
+    preproc_string: ($) =>
+      choice(
+        seq(
+          '"',
+          repeat(choice(alias($._preproc_string_text, $.string_content), $.escaped_quote)),
+          '"',
+        ),
+        seq(
+          "'",
+          repeat(
+            choice(
+              alias($._preproc_string_text_sq, $.string_content),
+              alias(token.immediate("''"), $.escaped_quote),
+            ),
+          ),
+          "'",
+        ),
+      ),
+
+    _preproc_string_text: ($) => token.immediate(prec(1, /[^"\r\n]+/)),
+
+    _preproc_string_text_sq: ($) => token.immediate(prec(1, /[^'\r\n]+/)),
+
+    preproc_identifier: ($) => token(prec(1, /[A-Za-z_][A-Za-z0-9_]*/)),
+
+    preproc_operator: ($) =>
+      token(
+        prec(
+          1,
+          choice(
+            '==', '!=', '<=', '>=', '&&', '||', '<<', '>>',
+            '+', '-', '*', '/', '%', '<', '>', '=', '!', '?', ':', '.', '&', '|', '^',
+          ),
+        ),
+      ),
+
+    _preproc_punctuation: ($) =>
+      alias(token(prec(1, choice('(', ')', '[', ']', ','))), $.punctuation),
+
+    // Anything else on the line. Whitespace is excluded so it is handled only
+    // by `extras`; including it makes the neighbouring token absorb a leading
+    // space, which breaks exact-text predicates.
+    _preproc_other: ($) =>
+      alias(
+        token(prec(-1, /([^\r\n\t \\"(),\[\]A-Za-z0-9_+\-*\/%<>=!?:.&|^]|\\[^\r\n])+/)),
+        $.preproc_text,
+      ),
 
     // -------------------------------------------------------------- trivia
 

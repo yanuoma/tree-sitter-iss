@@ -186,6 +186,68 @@ fn bundled_queries_are_valid() {
         .expect("queries/injections.scm failed to compile");
 }
 
+/// Every highlight pattern must match something.
+///
+/// A pattern that compiles but never matches is invisible to every other check
+/// here. Two whole sections of the query were once silently dead -- one gated
+/// on the wrong keyword list, one deleted outright -- and everything still
+/// reported green, because "the query compiles" and "the query works" are very
+/// different claims.
+///
+/// The fixture is committed, unlike the validation corpus, so this assertion
+/// holds on a fresh clone and in CI rather than quietly weakening to nothing.
+#[test]
+fn every_highlight_pattern_matches_something() {
+    let language: tree_sitter::Language = tree_sitter_iss::LANGUAGE.into();
+    let query = Query::new(&language, tree_sitter_iss::HIGHLIGHTS_QUERY).unwrap();
+
+    let mut sources = vec![
+        include_str!("../examples/patterns.iss").to_string(),
+        include_str!("../examples/realistic.iss").to_string(),
+    ];
+    // The corpus is an optional extra; it is not vendored in this repository.
+    for dir in ["examples/real", "examples/wild"] {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) == Some("iss") {
+                    if let Ok(text) = std::fs::read_to_string(&path) {
+                        sources.push(text);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut parser = parser();
+    for source in &sources {
+        let tree = parser.parse(source, None).expect("parse returned None");
+        let mut cursor = QueryCursor::new();
+        let mut matches = cursor.matches(&query, tree.root_node(), source.as_bytes());
+        while let Some(m) = matches.next() {
+            seen.insert(m.pattern_index);
+        }
+    }
+
+    let dead: Vec<String> = (0..query.pattern_count())
+        .filter(|i| !seen.contains(i))
+        .map(|i| {
+            let byte = query.start_byte_for_pattern(i);
+            let line = tree_sitter_iss::HIGHLIGHTS_QUERY[..byte]
+                .matches('\n')
+                .count()
+                + 1;
+            format!("pattern {i} at highlights.scm:{line}")
+        })
+        .collect();
+
+    assert!(
+        dead.is_empty(),
+        "highlight patterns that never match anything: {dead:#?}"
+    );
+}
+
 /// Parse every script in the local validation corpus.
 ///
 /// The corpus is third-party code from other projects, so it is **not**

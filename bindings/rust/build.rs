@@ -37,6 +37,15 @@ fn main() {
 
     c_config.compile("tree-sitter-iss");
 
+    // The queries are pulled in with include_str!, and a stale build makes a
+    // query test pass or fail against a file that is no longer on disk, which
+    // is thoroughly confusing to debug.
+    for query in ["queries/highlights.scm", "queries/injections.scm"] {
+        if std::path::Path::new(query).exists() {
+            println!("cargo:rerun-if-changed={query}");
+        }
+    }
+
     println!("cargo:rustc-check-cfg=cfg(with_highlights_query)");
     if std::path::Path::new("queries/highlights.scm").exists() {
         println!("cargo:rustc-cfg=with_highlights_query");

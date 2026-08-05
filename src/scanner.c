@@ -16,6 +16,7 @@ enum TokenType {
   PASCAL_CODE,
   CONSTANT,
   PREPROC_INLINE,
+  ENV_CONSTANT,
   ESCAPED_BRACE,
   EOF_TOKEN,
   ERROR_SENTINEL,
@@ -76,7 +77,8 @@ static bool scan_pascal_code(TSLexer *lexer) {
   return true;
 }
 
-// Scan a balanced brace group: a Setup constant or an ISPP inline expansion.
+// Scan a balanced brace group: a Setup constant, an environment variable
+// reference, or an ISPP inline expansion.
 static bool scan_brace_group(TSLexer *lexer, const bool *valid_symbols) {
   if (lexer->lookahead != '{') {
     return false;
@@ -94,8 +96,19 @@ static bool scan_brace_group(TSLexer *lexer, const bool *valid_symbols) {
     return true;
   }
 
-  bool is_preproc = lexer->lookahead == '#';
-  if (is_preproc ? !valid_symbols[PREPROC_INLINE] : !valid_symbols[CONSTANT]) {
+  // Distinguish the three kinds here, by the character after the brace, rather
+  // than with a `#match?` predicate in the highlight query. That matters:
+  // Neovim compiles query regexes as very-magic Vim patterns, where a bare `%`
+  // is an operator prefix, so a pattern like `^\{%` fails to compile and takes
+  // the entire highlighter down with it.
+  enum TokenType kind = CONSTANT;
+  if (lexer->lookahead == '#') {
+    kind = PREPROC_INLINE;
+  } else if (lexer->lookahead == '%') {
+    kind = ENV_CONSTANT;
+  }
+
+  if (!valid_symbols[kind]) {
     return false;
   }
 
@@ -116,7 +129,7 @@ static bool scan_brace_group(TSLexer *lexer, const bool *valid_symbols) {
   }
 
   lexer->mark_end(lexer);
-  lexer->result_symbol = is_preproc ? PREPROC_INLINE : CONSTANT;
+  lexer->result_symbol = kind;
   return true;
 }
 
@@ -134,10 +147,17 @@ bool tree_sitter_iss_external_scanner_scan(void *payload, TSLexer *lexer,
     return true;
   }
 
-  if ((valid_symbols[CONSTANT] || valid_symbols[PREPROC_INLINE] ||
-       valid_symbols[ESCAPED_BRACE]) &&
-      scan_brace_group(lexer, valid_symbols)) {
-    return true;
+  if (valid_symbols[CONSTANT] || valid_symbols[PREPROC_INLINE] ||
+      valid_symbols[ENV_CONSTANT] || valid_symbols[ESCAPED_BRACE]) {
+    // Skip leading blanks so the token starts at the brace. Without this the
+    // node would begin before the whitespace, and any exact-text predicate in
+    // a highlight query would silently fail to match.
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
+      lexer->advance(lexer, true);
+    }
+    if (scan_brace_group(lexer, valid_symbols)) {
+      return true;
+    }
   }
 
   if (valid_symbols[EOF_TOKEN] && lexer->lookahead == 0) {

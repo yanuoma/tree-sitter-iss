@@ -15,12 +15,16 @@ style preprocessor, and a complete Pascal program.
 | Official example scripts ([`jrsoftware/issrc`]) | **22 / 22** parse, 0 errors |
 | Real-world scripts scraped from public GitHub repos | **48 / 48** parse, 0 errors |
 | `tree-sitter test` corpus | **8 / 8** pass |
-| `cargo test` | **12 / 12** pass |
+| Highlight patterns that match something | **44 / 44** |
+| `cargo test` | **14 / 14** pass |
 | Throughput | ~16 MB/s |
 | Error recovery | localized (`MISSING` node, no cascade) |
 
 The 70-script corpus is other projects' code under their own licenses, so it is
-fetched on demand by `scripts/fetch-corpus.ps1` rather than vendored here.
+fetched on demand by `scripts/fetch-corpus.ps1` rather than vendored here. The
+tests do not depend on it: `examples/patterns.iss` is a self-authored fixture
+that exercises every highlight pattern, so the checks above hold on a fresh
+clone and in CI.
 
 ## Usage from Rust
 

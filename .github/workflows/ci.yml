@@ -117,3 +117,70 @@ jobs:
 
       - name: Check queries
         run: ./ts_query_ls check -f queries/
+
+  neovim:
+    name: Queries load in Neovim
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up tree-sitter
+        uses: tree-sitter/setup-action/cli@v2
+
+      - name: Set up Neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      # Neovim does not use the same regex engine as the tree-sitter CLI: it
+      # compiles `#match?` patterns as very-magic Vim patterns. A query can
+      # therefore compile and behave correctly under `tree-sitter query` while
+      # failing to compile, or silently matching everything, in the actual
+      # editor. Only running it in Neovim catches that.
+      - name: Build parser and stage queries
+        run: |
+          mkdir -p rt/parser rt/queries/iss
+          tree-sitter build --output rt/parser/iss.so
+          cp queries/*.scm rt/queries/iss/
+
+      - name: Run the highlight query in Neovim
+        run: |
+          cat > check.lua <<'LUA'
+          vim.opt.rtp:prepend(vim.fn.getcwd() .. '/rt')
+          vim.treesitter.language.add('iss', { path = vim.fn.getcwd() .. '/rt/parser/iss.so' })
+          vim.cmd('edit examples/patterns.iss')
+
+          local q = assert(vim.treesitter.query.get('iss', 'highlights'), 'no highlights query')
+          local parser = assert(vim.treesitter.get_parser(0, 'iss'))
+          local root = parser:parse()[1]:root()
+          assert(not root:has_error(), 'fixture failed to parse')
+
+          -- Assert on *content*, not on a capture count. The bug this job
+          -- exists to catch was a predicate that matched the empty string,
+          -- which increases the count and would sail past a size check.
+          local counts = {}
+          for id, node in q:iter_captures(root, 0) do
+            local name = q.captures[id]
+            counts[name] = (counts[name] or 0) + 1
+            if name == 'character.special' then
+              local text = vim.treesitter.get_node_text(node, 0)
+              assert(text:match('^%%[0-9n]$'), '@character.special on ' .. vim.inspect(text))
+            end
+          end
+
+          for _, name in ipairs({
+            'attribute', 'boolean', 'character.special', 'comment', 'constant',
+            'constant.builtin', 'constant.macro', 'function.macro', 'keyword',
+            'keyword.directive', 'number', 'property', 'string', 'type',
+            'type.builtin', 'variable.builtin',
+          }) do
+            assert(counts[name], 'no captures for @' .. name)
+          end
+          io.write('ok\n')
+          LUA
+          # `-l` propagates the script's exit status; `-c 'luafile ...'` prints
+          # the error and then still quits 0, so the assertions above would be
+          # decorative and this job could never fail.
+          nvim --clean -l check.lua

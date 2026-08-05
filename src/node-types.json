@@ -50,6 +50,37 @@
     }
   },
   {
+    "type": "directive_key",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "directive_name",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "directive_key",
+            "named": true
+          }
+        ]
+      },
+      "language": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "language_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "directive_section",
     "named": true,
     "fields": {},
@@ -78,6 +109,11 @@
   },
   {
     "type": "identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "language_name",
     "named": true,
     "fields": {}
   },
@@ -171,7 +207,19 @@
           "named": true
         },
         {
+          "type": "env_constant",
+          "named": true
+        },
+        {
           "type": "escaped_brace",
+          "named": true
+        },
+        {
+          "type": "message_placeholder",
+          "named": true
+        },
+        {
+          "type": "number",
           "named": true
         },
         {
@@ -181,6 +229,10 @@
         {
           "type": "string",
           "named": true
+        },
+        {
+          "type": "word",
+          "named": true
         }
       ]
     }
@@ -188,7 +240,41 @@
   {
     "type": "preproc_argument",
     "named": true,
-    "fields": {}
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "number",
+          "named": true
+        },
+        {
+          "type": "preproc_identifier",
+          "named": true
+        },
+        {
+          "type": "preproc_inline",
+          "named": true
+        },
+        {
+          "type": "preproc_operator",
+          "named": true
+        },
+        {
+          "type": "preproc_string",
+          "named": true
+        },
+        {
+          "type": "preproc_text",
+          "named": true
+        },
+        {
+          "type": "punctuation",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "preproc_directive",
@@ -200,6 +286,10 @@
         "types": [
           {
             "type": "preproc_argument",
+            "named": true
+          },
+          {
+            "type": "preproc_text",
             "named": true
           }
         ]
@@ -214,6 +304,25 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "preproc_string",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escaped_quote",
+          "named": true
+        },
+        {
+          "type": "string_content",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -253,10 +362,6 @@
         "types": [
           {
             "type": "section_name",
-            "named": false
-          },
-          {
-            "type": "section_name",
             "named": true
           }
         ]
@@ -269,7 +374,7 @@
     "fields": {},
     "children": {
       "multiple": false,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "identifier",
@@ -312,6 +417,10 @@
       "types": [
         {
           "type": "constant",
+          "named": true
+        },
+        {
+          "type": "env_constant",
           "named": true
         },
         {
@@ -373,7 +482,19 @@
           "named": true
         },
         {
+          "type": "env_constant",
+          "named": true
+        },
+        {
           "type": "escaped_brace",
+          "named": true
+        },
+        {
+          "type": "message_placeholder",
+          "named": true
+        },
+        {
+          "type": "number",
           "named": true
         },
         {
@@ -383,12 +504,24 @@
         {
           "type": "text",
           "named": true
+        },
+        {
+          "type": "word",
+          "named": true
         }
       ]
     }
   },
   {
     "type": "\"",
+    "named": false
+  },
+  {
+    "type": "'",
+    "named": false
+  },
+  {
+    "type": ".",
     "named": false
   },
   {
@@ -420,7 +553,7 @@
     "named": true
   },
   {
-    "type": "directive_name",
+    "type": "env_constant",
     "named": true
   },
   {
@@ -432,7 +565,19 @@
     "named": true
   },
   {
+    "type": "message_placeholder",
+    "named": true
+  },
+  {
+    "type": "number",
+    "named": true
+  },
+  {
     "type": "pascal_code",
+    "named": true
+  },
+  {
+    "type": "preproc_identifier",
     "named": true
   },
   {
@@ -444,8 +589,16 @@
     "named": true
   },
   {
-    "type": "section_name",
-    "named": false
+    "type": "preproc_operator",
+    "named": true
+  },
+  {
+    "type": "preproc_text",
+    "named": true
+  },
+  {
+    "type": "punctuation",
+    "named": true
   },
   {
     "type": "string_content",
@@ -453,6 +606,10 @@
   },
   {
     "type": "text",
+    "named": true
+  },
+  {
+    "type": "word",
     "named": true
   }
 ]
