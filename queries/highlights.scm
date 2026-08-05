@@ -214,8 +214,8 @@
   name: (parameter_name) @_param
   value: (parameter_value
     (word) @keyword.operator))
-  (#any-of? @_param
-    "Check" "check" "Components" "components" "Tasks" "tasks" "Languages" "languages")
+  (#any-of? @_param "Check" "check" "Components" "components" "Tasks" "tasks" "Languages"
+    "languages")
   (#any-of? @keyword.operator "and" "not" "or"))
 
 ; Other enumerated parameter values.
